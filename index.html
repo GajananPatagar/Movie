@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movie Hub Online — Search, Preview & Download</title>
+<style>
+  :root { --bg: #0b0f19; --card: #161f30; --accent: #e50914; --text: #f1f5f9; }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+  body { background: var(--bg); color: var(--text); padding: 16px; max-width: 1100px; margin: auto; }
+  header { text-align: center; padding: 18px 0; border-bottom: 1px solid #26334d; margin-bottom: 20px; }
+  h1 { color: var(--accent); font-size: 1.8rem; margin-bottom: 6px; }
+  .search-bar { display: flex; gap: 8px; max-width: 700px; margin: 14px auto 0; flex-wrap: wrap; }
+  input, select, button { padding: 12px 14px; border-radius: 8px; border: 1px solid #334155; font-size: 1rem; }
+  input { flex: 1; min-width: 210px; background: #0f172a; color: #fff; }
+  button { background: var(--accent); color: #fff; border: none; font-weight: 600; cursor: pointer; }
+  button.secondary { background: #2563eb; }
+  .player-box { display: none; background: var(--card); padding: 16px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #334155; }
+  video { width: 100%; max-height: 460px; background: #000; border-radius: 8px; margin-top: 10px; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  .controls select { background: #0f172a; color: #fff; flex: 1; min-width: 200px; }
+  .btn-dl { background: #16a34a; color: #fff; text-decoration: none; padding: 11px 16px; border-radius: 8px; font-weight: 600; display: inline-block; }
+  .badge { font-size: 0.8rem; background: #334155; padding: 4px 8px; border-radius: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid #1e293b; }
+  .card img { width: 100%; height: 300px; object-fit: cover; background: #090d16; }
+  .card-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .card-title { font-size: 1rem; font-weight: 600; line-height: 1.3; }
+  .card-actions { margin-top: auto; display: flex; gap: 6px; }
+  .card-actions button { flex: 1; padding: 9px; font-size: 0.85rem; }
+  #status { text-align: center; margin: 14px 0; color: #94a3b8; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎬 Movie Hub Online</h1>
+  <p style="color:#94a3b8;font-size:0.9rem;">Instant Search • In-App Preview • Quality Switcher • Direct Download</p>
+  <div class="search-bar">
+    <input type="text" id="q" placeholder="Search any movie title or paste direct .mp4/.m3u8 URL..." value="Night of the Living Dead">
+    <button onclick="runSearch()">Search</button>
+  </div>
+</header>
+
+<div id="playerBox" class="player-box">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+    <h3 id="nowTitle">Selected Movie</h3>
+    <span id="modeBadge" class="badge">Ready</span>
+  </div>
+  <video id="vid" controls playsinline preload="metadata"></video>
+  <div class="controls">
+    <select id="qualitySelect" onchange="switchQuality()"></select>
+    <button class="secondary" onclick="startPreview30s()">⏱️ Verify 30s Preview</button>
+    <button onclick="watchFull()">▶️ Watch Full Movie</button>
+    <a id="dlBtn" class="btn-dl" href="#" target="_blank" download>⬇️ Download File</a>
+  </div>
+</div>
+
+<div id="status">Loading movies...</div>
+<div id="grid" class="grid"></div>
+
+<script>
+const vid = document.getElementById('vid');
+let previewTimer = null;
+
+async function runSearch() {
+  const query = document.getElementById('q').value.trim();
+  if (!query) return;
+  if (query.startsWith('http://') || query.startsWith('https://')) {
+    loadDirectUrl(query);
+    return;
+  }
+  const status = document.getElementById('status');
+  const grid = document.getElementById('grid');
+  status.textContent = `Searching online movie databases for "${query}"...`;
+  grid.innerHTML = '';
+
+  try {
+    const iaQ = encodeURIComponent(`(${query}) AND mediatype:(movies)`);
+    const iaUrl = `https://archive.org/advancedsearch.php?q=${iaQ}&fl[]=identifier&fl[]=title&fl[]=year&fl[]=language&sort[]=downloads+desc&rows=24&page=1&output=json`;
+    const res = await fetch(iaUrl);
+    const data = await res.json();
+    const docs = (data.response && data.response.docs) || [];
+
+    if (!docs.length) {
+      status.textContent = 'No matching movies found. Try another keyword or paste a direct stream link.';
+      return;
+    }
+    status.textContent = `Found ${docs.length} results — Tap Preview or Watch & Download:`;
+    docs.forEach(d => {
+      const id = d.identifier;
+      const title = d.title || id;
+      const year = d.year || 'Movie';
+      const lang = Array.isArray(d.language) ? d.language.join(', ') : (d.language || 'Multi/Default');
+      const thumb = `https://archive.org/services/img/${id}`;
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <img src="${thumb}" alt="${title}" loading="lazy">
+        <div class="card-body">
+          <div class="card-title">${title}</div>
+          <div style="font-size:0.8rem;color:#94a3b8;">📅 ${year} • 🌐 ${lang}</div>
+          <div class="card-actions">
+            <button class="secondary" onclick="loadMovie('${id}', '${title.replace(/'/g, "\\'")}', true)">Preview</button>
+            <button onclick="loadMovie('${id}', '${title.replace(/'/g, "\\'")}', false)">Watch / DL</button>
+          </div>
+        </div>`;
+      grid.appendChild(card);
+    });
+  } catch (e) {
+    status.textContent = 'Error connecting to search API: ' + e.message;
+  }
+}
+
+async function loadMovie(id, title, isPreview) {
+  const box = document.getElementById('playerBox');
+  const sel = document.getElementById('qualitySelect');
+  const badge = document.getElementById('modeBadge');
+  box.style.display = 'block';
+  box.scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('nowTitle').textContent = title;
+  badge.textContent = 'Fetching qualities & audio tracks...';
+  sel.innerHTML = '<option>Loading streams...</option>';
+
+  try {
+    const r = await fetch(`https://archive.org/metadata/${id}`);
+    const meta = await r.json();
+    const files = (meta.files || []).filter(f => /\.(mp4|mkv|webm|ogv)$/i.test(f.name));
+    files.sort((a, b) => (parseInt(b.size || 0) - parseInt(a.size || 0)));
+
+    if (!files.length) {
+      badge.textContent = 'External Page Only';
+      window.open(`https://archive.org/details/${id}`, '_blank');
+      return;
+    }
+
+    sel.innerHTML = '';
+    files.forEach(f => {
+      const mb = ((parseInt(f.size || 0)) / (1024 * 1024)).toFixed(1);
+      const url = `https://archive.org/download/${id}/${encodeURIComponent(f.name)}`;
+      const opt = document.createElement('option');
+      opt.value = url;
+      opt.textContent = `${f.name} (${mb} MB - ${f.format || 'Video'})`;
+      sel.appendChild(opt);
+    });
+
+    const subFiles = (meta.files || []).filter(f => /\.(vtt|srt)$/i.test(f.name));
+    vid.innerHTML = '';
+    subFiles.forEach(sf => {
+      const tr = document.createElement('track');
+      tr.kind = 'subtitles';
+      tr.label = sf.name;
+      tr.src = `https://archive.org/download/${id}/${encodeURIComponent(sf.name)}`;
+      vid.appendChild(tr);
+    });
+
+    switchQuality();
+    if (isPreview) startPreview30s();
+    else watchFull();
+  } catch (e) {
+    badge.textContent = 'Error loading stream metadata';
+  }
+}
+
+function loadDirectUrl(url) {
+  const box = document.getElementById('playerBox');
+  const sel = document.getElementById('qualitySelect');
+  box.style.display = 'block';
+  document.getElementById('nowTitle').textContent = 'Direct Stream URL';
+  sel.innerHTML = `<option value="${url}">Direct Stream (${url})</option>`;
+  switchQuality();
+  watchFull();
+}
+
+function switchQuality() {
+  const url = document.getElementById('qualitySelect').value;
+  if (!url) return;
+  vid.src = url;
+  document.getElementById('dlBtn').href = url;
+}
+
+function startPreview30s() {
+  clearTimeout(previewTimer);
+  document.getElementById('modeBadge').textContent = '⏱️ 30s Verification Preview (01:00 - 01:30)';
+  vid.currentTime = 60;
+  vid.play().catch(() => {});
+  previewTimer = setTimeout(() => {
+    vid.pause();
+    document.getElementById('modeBadge').textContent = '✅ Preview Verified! Click Watch Full or Download.';
+  }, 30000);
+}
+
+function watchFull() {
+  clearTimeout(previewTimer);
+  document.getElementById('modeBadge').textContent = '▶️ Full Movie Stream + Download Ready';
+  vid.play().catch(() => {});
+}
+
+window.onload = runSearch;
+</script>
+</body>
+</html>
