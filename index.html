@@ -2,201 +2,419 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Movie Hub Online — Search, Preview & Download</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MovieHub Pro</title>
 <style>
-  :root { --bg: #0b0f19; --card: #161f30; --accent: #e50914; --text: #f1f5f9; }
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
-  body { background: var(--bg); color: var(--text); padding: 16px; max-width: 1100px; margin: auto; }
-  header { text-align: center; padding: 18px 0; border-bottom: 1px solid #26334d; margin-bottom: 20px; }
-  h1 { color: var(--accent); font-size: 1.8rem; margin-bottom: 6px; }
-  .search-bar { display: flex; gap: 8px; max-width: 700px; margin: 14px auto 0; flex-wrap: wrap; }
-  input, select, button { padding: 12px 14px; border-radius: 8px; border: 1px solid #334155; font-size: 1rem; }
-  input { flex: 1; min-width: 210px; background: #0f172a; color: #fff; }
-  button { background: var(--accent); color: #fff; border: none; font-weight: 600; cursor: pointer; }
-  button.secondary { background: #2563eb; }
-  .player-box { display: none; background: var(--card); padding: 16px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #334155; }
-  video { width: 100%; max-height: 460px; background: #000; border-radius: 8px; margin-top: 10px; }
-  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
-  .controls select { background: #0f172a; color: #fff; flex: 1; min-width: 200px; }
-  .btn-dl { background: #16a34a; color: #fff; text-decoration: none; padding: 11px 16px; border-radius: 8px; font-weight: 600; display: inline-block; }
-  .badge { font-size: 0.8rem; background: #334155; padding: 4px 8px; border-radius: 6px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
-  .card { background: var(--card); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid #1e293b; }
-  .card img { width: 100%; height: 300px; object-fit: cover; background: #090d16; }
-  .card-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
-  .card-title { font-size: 1rem; font-weight: 600; line-height: 1.3; }
-  .card-actions { margin-top: auto; display: flex; gap: 6px; }
-  .card-actions button { flex: 1; padding: 9px; font-size: 0.85rem; }
-  #status { text-align: center; margin: 14px 0; color: #94a3b8; }
+  :root { --bg:#06080f; --surface:#111625; --card:#182036; --accent:#e50914; --gold:#f59e0b; --text:#f8fafc; --muted:#94a3b8; }
+  * { box-sizing:border-box; margin:0; padding:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--text); padding-bottom:40px; overflow-x:hidden; }
+  .topbar { position:sticky; top:0; z-index:50; background:rgba(6,8,15,0.92); backdrop-filter:blur(12px); padding:12px 14px; border-bottom:1px solid #1e293b; }
+  .brand-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .brand { font-size:1.35rem; font-weight:800; color:var(--accent); letter-spacing:0.5px; display:flex; align-items:center; gap:6px; }
+  .badge-pro { background:linear-gradient(135deg,#e50914,#b91c1c); color:#fff; font-size:0.68rem; padding:2px 7px; border-radius:4px; }
+  .search-row { display:flex; gap:8px; }
+  .search-row input { flex:1; background:var(--surface); color:#fff; border:1px solid #2e3c56; padding:11px 14px; border-radius:10px; font-size:0.95rem; outline:none; }
+  .search-row button { background:var(--accent); color:#fff; border:none; padding:0 18px; border-radius:10px; font-weight:700; cursor:pointer; }
+  .tabs { display:flex; gap:8px; overflow-x:auto; padding:10px 14px; scrollbar-width:none; }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tab { background:var(--surface); color:var(--muted); border:1px solid #263248; padding:7px 14px; border-radius:20px; font-size:0.82rem; font-weight:600; white-space:nowrap; cursor:pointer; }
+  .tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .drawer { display:none; margin:10px 14px; background:var(--surface); padding:14px; border-radius:14px; border:1px solid #2e3c56; }
+  .player-modal { display:none; margin:10px 14px 18px; background:var(--surface); border-radius:16px; overflow:hidden; border:1px solid #334155; box-shadow:0 12px 35px rgba(0,0,0,0.7); }
+  video { width:100%; max-height:360px; background:#000; display:block; }
+  .p-body { padding:14px; }
+  .p-header { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .p-title { font-size:1.15rem; font-weight:700; }
+  .p-tags { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+  .tag { background:#1e293b; color:#cbd5e1; font-size:0.75rem; padding:3px 9px; border-radius:6px; }
+  .tag.verified { background:rgba(22,163,74,0.2); color:#4ade80; border:1px solid #16a34a; }
+  .p-desc { font-size:0.84rem; color:var(--muted); line-height:1.45; margin-bottom:12px; max-height:85px; overflow-y:auto; }
+  .ctrl-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  select { width:100%; background:#0b0f19; color:#fff; border:1px solid #334155; padding:10px; border-radius:8px; font-size:0.85rem; }
+  .btn-row { display:flex; flex-wrap:wrap; gap:8px; }
+  .btn { flex:1; min-width:110px; padding:11px 12px; border-radius:9px; border:none; font-weight:700; font-size:0.84rem; cursor:pointer; color:#fff; text-align:center; }
+  .btn-preview { background:#2563eb; }
+  .btn-dl { background:#16a34a; }
+  .btn-ext { background:#7c3aed; }
+  .status-bar { padding:6px 14px; font-size:0.82rem; color:var(--muted); display:flex; justify-content:space-between; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:12px; padding:8px 14px; }
+  .card { background:var(--card); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; border:1px solid #26334d; cursor:pointer; transition:transform 0.15s; position:relative; }
+  .card:active { transform:scale(0.97); }
+  .card img { width:100%; height:215px; object-fit:cover; background:#090d16; }
+  .badge-src { position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.8); color:#fff; font-size:0.68rem; padding:3px 7px; border-radius:6px; font-weight:700; }
+  .badge-dur { position:absolute; bottom:72px; right:8px; background:rgba(229,9,20,0.9); color:#fff; font-size:0.68rem; padding:2px 6px; border-radius:5px; font-weight:700; }
+  .c-body { padding:9px; display:flex; flex-direction:column; gap:4px; flex:1; }
+  .c-title { font-size:0.88rem; font-weight:700; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .c-meta { font-size:0.74rem; color:var(--muted); margin-top:auto; }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>🎬 Movie Hub Online</h1>
-  <p style="color:#94a3b8;font-size:0.9rem;">Instant Search • In-App Preview • Quality Switcher • Direct Download</p>
-  <div class="search-bar">
-    <input type="text" id="q" placeholder="Search any movie title or paste direct .mp4/.m3u8 URL..." value="Night of the Living Dead">
-    <button onclick="runSearch()">Search</button>
+<div class="topbar">
+  <div class="brand-row">
+    <div class="brand">🎬 MovieHub <span class="badge-pro">ULTRA APK</span></div>
+    <button onclick="toggleSources()" style="background:#1e293b;color:#fff;border:1px solid #334155;padding:6px 10px;border-radius:8px;font-size:0.78rem;">+ Custom Source</button>
   </div>
-</header>
-
-<div id="playerBox" class="player-box">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-    <h3 id="nowTitle">Selected Movie</h3>
-    <span id="modeBadge" class="badge">Ready</span>
-  </div>
-  <video id="vid" controls playsinline preload="metadata"></video>
-  <div class="controls">
-    <select id="qualitySelect" onchange="switchQuality()"></select>
-    <button class="secondary" onclick="startPreview30s()">⏱️ Verify 30s Preview</button>
-    <button onclick="watchFull()">▶️ Watch Full Movie</button>
-    <a id="dlBtn" class="btn-dl" href="#" target="_blank" download>⬇️ Download File</a>
+  <div class="search-row">
+    <input type="text" id="q" placeholder="Search any movie, actor, or language..." value="Kantara">
+    <button onclick="runMultiSearch()">Search</button>
   </div>
 </div>
 
-<div id="status">Loading movies...</div>
-<div id="grid" class="grid"></div>
+<div class="tabs">
+  <div class="tab active" onclick="quickFilter('all', this)">🔥 All Authentic Movies</div>
+  <div class="tab" onclick="quickFilter('fullstream', this)">🎞️ Full Streams (40m+)</div>
+  <div class="tab" onclick="quickTopic('Kannada Movie', this)">🇮🇳 Kannada</div>
+  <div class="tab" onclick="quickTopic('Hindi Movie', this)">🇮🇳 Hindi</div>
+  <div class="tab" onclick="quickTopic('Tamil Telugu Movie', this)">🇮🇳 South Cinema</div>
+  <div class="tab" onclick="quickTopic('Sci-Fi Action', this)">🌎 Hollywood</div>
+</div>
 
+<div id="sourceDrawer" class="drawer">
+  <h4 style="margin-bottom:8px;font-size:0.92rem;">📡 Add Direct Stream / M3U8 / Custom Movie JSON</h4>
+  <div style="display:flex;gap:8px;">
+    <input type="text" id="customUrl" placeholder="Paste direct .mp4, .mkv, or .m3u8 URL..." style="flex:1;background:#0b0f19;color:#fff;border:1px solid #334155;padding:9px;border-radius:8px;">
+    <button onclick="playCustomStream()" style="background:var(--accent);color:#fff;border:none;padding:0 14px;border-radius:8px;font-weight:700;">Play / DL</button>
+  </div>
+</div>
+
+<div id="playerModal" class="player-modal">
+  <video id="vid" controls playsinline preload="metadata" crossorigin="anonymous"></video>
+  <div class="p-body">
+    <div class="p-header">
+      <div class="p-title" id="pTitle">Select a Movie</div>
+      <button onclick="closePlayer()" style="background:transparent;color:var(--muted);border:none;font-size:1.1rem;">✕</button>
+    </div>
+    <div class="p-tags" id="pTags"></div>
+    <div class="p-desc" id="pDesc"></div>
+    <div class="ctrl-grid">
+      <div>
+        <label style="font-size:0.72rem;color:var(--muted);">🎞️ Quality / Stream Server</label>
+        <select id="qualSel" onchange="switchStream()"></select>
+      </div>
+      <div>
+        <label style="font-size:0.72rem;color:var(--muted);">🌐 Audio / Subtitle Track</label>
+        <select id="langSel" onchange="switchLanguageTrack()"></select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-preview" onclick="verifyPreview30s()">⏱️ 30s Verify Preview</button>
+      <button class="btn btn-dl" onclick="downloadCurrent()">⬇️ Download Movie</button>
+      <button class="btn btn-ext" onclick="openInVLC()">📺 Open in VLC/MPV</button>
+    </div>
+  </div>
+</div>
+
+<div class="status-bar">
+  <span id="statusTxt">Ready — Anti-Reaction & Anti-Fake Filter Active</span>
+  <span id="countTxt">0 results</span>
+</div>
+<div id="grid" class="grid"></div>
 <script>
-const vid = document.getElementById('vid');
+let allResults = [];
+let activeFilter = 'all';
+let currentItem = null;
 let previewTimer = null;
 
-async function runSearch() {
-  const query = document.getElementById('q').value.trim();
-  if (!query) return;
-  if (query.startsWith('http://') || query.startsWith('https://')) {
-    loadDirectUrl(query);
+const JUNK_REGEX = /\b(reaction|review|explained|roast|spoof|parody|gameplay|walkthrough|fan\s*made|voice\s*over|unboxing|status|shorts|whatsapp|making\s*of|interview|press\s*meet|lyric|lyrical|jukebox)\b/i;
+
+function isCleanTitle(title) {
+  return title && !JUNK_REGEX.test(title);
+}
+
+function toggleSources() {
+  const d = document.getElementById('sourceDrawer');
+  d.style.display = d.style.display === 'block' ? 'none' : 'block';
+}
+
+function closePlayer() {
+  const v = document.getElementById('vid');
+  v.pause();
+  document.getElementById('playerModal').style.display = 'none';
+}
+
+function quickTopic(topic, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  activeFilter = 'all';
+  document.getElementById('q').value = topic;
+  runMultiSearch();
+}
+
+function quickFilter(mode, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  activeFilter = mode;
+  renderGrid();
+}
+
+async function searchCatalogAPI(query) {
+  try {
+    const u = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=movie&limit=25`;
+    const r = await fetch(u);
+    const j = await r.json();
+    return (j.results || []).filter(m => isCleanTitle(m.trackName)).map(m => {
+      const mins = m.trackTimeMillis ? Math.round(m.trackTimeMillis / 60000) : 120;
+      const hiResArt = (m.artworkUrl100 || '').replace('100x100bb', '600x900bb');
+      return {
+        id: 'cat_' + m.trackId,
+        title: m.trackName,
+        year: (m.releaseDate || '').slice(0, 4) || 'Movie',
+        runtime: mins + ' min',
+        isFullStream: false,
+        source: 'Official Catalog',
+        genre: m.primaryGenreName || 'Cinema',
+        director: m.artistName || 'Director',
+        lang: m.country || 'Multi-Audio',
+        desc: m.longDescription || m.shortDescription || 'Authentic theatrical release metadata & verification stream.',
+        thumb: hiResArt,
+        streams: m.previewUrl ? [{ label: 'Official HD Verification Stream (MP4)', url: m.previewUrl, lang: 'Original Audio' }] : [],
+        iaQuery: m.trackName
+      };
+    });
+  } catch (e) { return []; }
+}
+
+async function searchArchiveFeatureFilms(query) {
+  try {
+    const qStr = `(${query}) AND mediatype:(movies) AND -title:(trailer OR review OR reaction OR promo OR clip)`;
+    const u = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(qStr)}&fl[]=identifier&fl[]=title&fl[]=year&fl[]=description&fl[]=language&fl[]=runtime&sort[]=downloads+desc&rows=25&page=1&output=json`;
+    const r = await fetch(u);
+    const j = await r.json();
+    const docs = (j.response && j.response.docs) || [];
+    return docs.filter(d => isCleanTitle(d.title)).map(d => {
+      const id = d.identifier;
+      const lang = Array.isArray(d.language) ? d.language.join(', ') : (d.language || 'Original / Multi');
+      return {
+        id: id,
+        title: d.title || id,
+        year: d.year || 'Classic/Open',
+        runtime: d.runtime || 'Full Film',
+        isFullStream: true,
+        source: 'Archive Feature',
+        genre: 'Feature Film',
+        director: 'Verified Upload',
+        lang: lang,
+        desc: (typeof d.description === 'string' ? d.description : 'Full-length archive feature film stream.').replace(/<[^>]*>?/gm, ''),
+        thumb: `https://archive.org/services/img/${id}`,
+        iaId: id,
+        streams: []
+      };
+    });
+  } catch (e) { return []; }
+}
+
+async function searchSepiaFullMovies(query) {
+  try {
+    const u = `https://sepiasearch.org/api/v1/search/videos?search=${encodeURIComponent(query)}&durationMin=2400&count=15&sort=-match`;
+    const r = await fetch(u);
+    const j = await r.json();
+    return (j.data || []).filter(v => isCleanTitle(v.name)).map(v => {
+      const mins = Math.round((v.duration || 2400) / 60);
+      return {
+        id: 'pt_' + v.uuid,
+        title: v.name,
+        year: (v.publishedAt || '').slice(0, 4) || 'Stream',
+        runtime: mins + ' min',
+        isFullStream: true,
+        source: 'PeerTube 40m+',
+        genre: 'Full Stream',
+        director: (v.account && v.account.displayName) || 'PeerTube Host',
+        lang: (v.language && v.language.label) || 'Original',
+        desc: v.description || 'Verified full-length federated stream (>= 40 mins).',
+        thumb: v.thumbnailUrl || '',
+        streams: [{ label: `Full Stream (${mins}m Web/Embed)`, url: v.embedUrl || v.url, lang: (v.language && v.language.label) || 'Default' }]
+      };
+    });
+  } catch (e) { return []; }
+}
+
+async function runMultiSearch() {
+  const q = document.getElementById('q').value.trim();
+  if (!q) return;
+  document.getElementById('statusTxt').textContent = `Searching authentic catalogs & 40m+ streams for "${q}"...`;
+  document.getElementById('grid').innerHTML = '';
+
+  const [catRes, iaRes, ptRes] = await Promise.all([
+    searchCatalogAPI(q),
+    searchArchiveFeatureFilms(q),
+    searchSepiaFullMovies(q)
+  ]);
+
+  allResults = [...iaRes, ...catRes, ...ptRes];
+  renderGrid();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  const list = activeFilter === 'fullstream' ? allResults.filter(x => x.isFullStream) : allResults;
+  document.getElementById('countTxt').textContent = `${list.length} verified titles`;
+  document.getElementById('statusTxt').textContent = list.length ? 'Tap any movie for details, language tracks & download' : 'No verified movies matched. Try another title.';
+
+  list.forEach((m, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.onclick = () => openMovieDetail(m);
+    card.innerHTML = `
+      <span class="badge-src">${m.source}</span>
+      <span class="badge-dur">${m.runtime}</span>
+      <img src="${m.thumb}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450/111625/e50914?text=MovieHub'">
+      <div class="c-body">
+        <div class="c-title">${m.title}</div>
+        <div class="c-meta">📅 ${m.year} • 🌐 ${m.lang}</div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+async function openMovieDetail(m) {
+  currentItem = m;
+  const modal = document.getElementById('playerModal');
+  modal.style.display = 'block';
+  modal.scrollIntoView({ behavior: 'smooth' });
+
+  document.getElementById('pTitle').textContent = `${m.title} (${m.year})`;
+  document.getElementById('pTags').innerHTML = `
+    <span class="tag verified">✔ Anti-Fake Verified</span>
+    <span class="tag">⏱️ ${m.runtime}</span>
+    <span class="tag">🎬 ${m.genre}</span>
+    <span class="tag">🌐 ${m.lang}</span>
+    <span class="tag">👤 ${m.director}</span>`;
+  document.getElementById('pDesc').textContent = m.desc;
+
+  const qualSel = document.getElementById('qualSel');
+  const langSel = document.getElementById('langSel');
+  qualSel.innerHTML = '<option>Resolving multi-quality streams...</option>';
+  langSel.innerHTML = `<option value="orig">${m.lang} (Default Track)</option>`;
+
+  let streams = [...(m.streams || [])];
+  const lookupId = m.iaId;
+  if (lookupId) {
+    try {
+      const r = await fetch(`https://archive.org/metadata/${lookupId}`);
+      const meta = await r.json();
+      const vFiles = (meta.files || []).filter(f => /\.(mp4|mkv|webm)$/i.test(f.name) && (parseInt(f.size || 0) > 5 * 1024 * 1024));
+      vFiles.sort((a, b) => parseInt(b.size || 0) - parseInt(a.size || 0));
+      vFiles.forEach(f => {
+        const mb = (parseInt(f.size || 0) / (1024 * 1024)).toFixed(1);
+        streams.push({
+          label: `${f.format || 'Video'} - ${mb} MB (${f.name})`,
+          url: `https://archive.org/download/${lookupId}/${encodeURIComponent(f.name)}`,
+          lang: m.lang
+        });
+      });
+      const subs = (meta.files || []).filter(f => /\.(vtt|srt)$/i.test(f.name));
+      subs.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = `https://archive.org/download/${lookupId}/${encodeURIComponent(s.name)}`;
+        opt.textContent = `Subtitle/Track: ${s.name}`;
+        langSel.appendChild(opt);
+      });
+    } catch (e) {}
+  } else if (m.iaQuery) {
+    const iaMatches = await searchArchiveFeatureFilms(m.iaQuery);
+    if (iaMatches.length && iaMatches[0].iaId) {
+      try {
+        const r = await fetch(`https://archive.org/metadata/${iaMatches[0].iaId}`);
+        const meta = await r.json();
+        (meta.files || []).filter(f => /\.(mp4|mkv|webm)$/i.test(f.name) && parseInt(f.size||0) > 15*1024*1024).forEach(f => {
+          const mb = (parseInt(f.size || 0) / (1024 * 1024)).toFixed(1);
+          streams.push({
+            label: `[Full Archive Stream] ${mb} MB (${f.name})`,
+            url: `https://archive.org/download/${iaMatches[0].iaId}/${encodeURIComponent(f.name)}`,
+            lang: iaMatches[0].lang
+          });
+        });
+      } catch (e) {}
+    }
+  }
+
+  qualSel.innerHTML = '';
+  if (!streams.length) {
+    qualSel.innerHTML = '<option value="">No direct MP4 found — Use Custom Source or External</option>';
     return;
   }
-  const status = document.getElementById('status');
-  const grid = document.getElementById('grid');
-  status.textContent = `Searching online movie databases for "${query}"...`;
-  grid.innerHTML = '';
-
-  try {
-    const iaQ = encodeURIComponent(`(${query}) AND mediatype:(movies)`);
-    const iaUrl = `https://archive.org/advancedsearch.php?q=${iaQ}&fl[]=identifier&fl[]=title&fl[]=year&fl[]=language&sort[]=downloads+desc&rows=24&page=1&output=json`;
-    const res = await fetch(iaUrl);
-    const data = await res.json();
-    const docs = (data.response && data.response.docs) || [];
-
-    if (!docs.length) {
-      status.textContent = 'No matching movies found. Try another keyword or paste a direct stream link.';
-      return;
-    }
-    status.textContent = `Found ${docs.length} results — Tap Preview or Watch & Download:`;
-    docs.forEach(d => {
-      const id = d.identifier;
-      const title = d.title || id;
-      const year = d.year || 'Movie';
-      const lang = Array.isArray(d.language) ? d.language.join(', ') : (d.language || 'Multi/Default');
-      const thumb = `https://archive.org/services/img/${id}`;
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML = `
-        <img src="${thumb}" alt="${title}" loading="lazy">
-        <div class="card-body">
-          <div class="card-title">${title}</div>
-          <div style="font-size:0.8rem;color:#94a3b8;">📅 ${year} • 🌐 ${lang}</div>
-          <div class="card-actions">
-            <button class="secondary" onclick="loadMovie('${id}', '${title.replace(/'/g, "\\'")}', true)">Preview</button>
-            <button onclick="loadMovie('${id}', '${title.replace(/'/g, "\\'")}', false)">Watch / DL</button>
-          </div>
-        </div>`;
-      grid.appendChild(card);
-    });
-  } catch (e) {
-    status.textContent = 'Error connecting to search API: ' + e.message;
-  }
+  streams.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.url;
+    opt.textContent = s.label;
+    qualSel.appendChild(opt);
+  });
+  switchStream();
 }
 
-async function loadMovie(id, title, isPreview) {
-  const box = document.getElementById('playerBox');
-  const sel = document.getElementById('qualitySelect');
-  const badge = document.getElementById('modeBadge');
-  box.style.display = 'block';
-  box.scrollIntoView({ behavior: 'smooth' });
-  document.getElementById('nowTitle').textContent = title;
-  badge.textContent = 'Fetching qualities & audio tracks...';
-  sel.innerHTML = '<option>Loading streams...</option>';
-
-  try {
-    const r = await fetch(`https://archive.org/metadata/${id}`);
-    const meta = await r.json();
-    const files = (meta.files || []).filter(f => /\.(mp4|mkv|webm|ogv)$/i.test(f.name));
-    files.sort((a, b) => (parseInt(b.size || 0) - parseInt(a.size || 0)));
-
-    if (!files.length) {
-      badge.textContent = 'External Page Only';
-      window.open(`https://archive.org/details/${id}`, '_blank');
-      return;
-    }
-
-    sel.innerHTML = '';
-    files.forEach(f => {
-      const mb = ((parseInt(f.size || 0)) / (1024 * 1024)).toFixed(1);
-      const url = `https://archive.org/download/${id}/${encodeURIComponent(f.name)}`;
-      const opt = document.createElement('option');
-      opt.value = url;
-      opt.textContent = `${f.name} (${mb} MB - ${f.format || 'Video'})`;
-      sel.appendChild(opt);
-    });
-
-    const subFiles = (meta.files || []).filter(f => /\.(vtt|srt)$/i.test(f.name));
-    vid.innerHTML = '';
-    subFiles.forEach(sf => {
-      const tr = document.createElement('track');
-      tr.kind = 'subtitles';
-      tr.label = sf.name;
-      tr.src = `https://archive.org/download/${id}/${encodeURIComponent(sf.name)}`;
-      vid.appendChild(tr);
-    });
-
-    switchQuality();
-    if (isPreview) startPreview30s();
-    else watchFull();
-  } catch (e) {
-    badge.textContent = 'Error loading stream metadata';
-  }
-}
-
-function loadDirectUrl(url) {
-  const box = document.getElementById('playerBox');
-  const sel = document.getElementById('qualitySelect');
-  box.style.display = 'block';
-  document.getElementById('nowTitle').textContent = 'Direct Stream URL';
-  sel.innerHTML = `<option value="${url}">Direct Stream (${url})</option>`;
-  switchQuality();
-  watchFull();
-}
-
-function switchQuality() {
-  const url = document.getElementById('qualitySelect').value;
+function switchStream() {
+  const url = document.getElementById('qualSel').value;
+  const v = document.getElementById('vid');
   if (!url) return;
-  vid.src = url;
-  document.getElementById('dlBtn').href = url;
+  v.src = url;
+  v.play().catch(() => {});
 }
 
-function startPreview30s() {
+function switchLanguageTrack() {
+  const val = document.getElementById('langSel').value;
+  const v = document.getElementById('vid');
+  if (v.audioTracks && v.audioTracks.length > 1) {
+    for (let i = 0; i < v.audioTracks.length; i++) {
+      v.audioTracks[i].enabled = (i === document.getElementById('langSel').selectedIndex);
+    }
+  }
+  if (val && val.startsWith('http')) {
+    v.innerHTML = `<track kind="subtitles" src="${val}" srclang="en" label="Selected Track" default>`;
+  }
+}
+
+function verifyPreview30s() {
   clearTimeout(previewTimer);
-  document.getElementById('modeBadge').textContent = '⏱️ 30s Verification Preview (01:00 - 01:30)';
-  vid.currentTime = 60;
-  vid.play().catch(() => {});
-  previewTimer = setTimeout(() => {
-    vid.pause();
-    document.getElementById('modeBadge').textContent = '✅ Preview Verified! Click Watch Full or Download.';
-  }, 30000);
+  const v = document.getElementById('vid');
+  v.currentTime = Math.min(30, (v.duration || 60) * 0.25);
+  v.play().catch(() => {});
+  previewTimer = setTimeout(() => v.pause(), 30000);
 }
 
-function watchFull() {
-  clearTimeout(previewTimer);
-  document.getElementById('modeBadge').textContent = '▶️ Full Movie Stream + Download Ready';
-  vid.play().catch(() => {});
+function downloadCurrent() {
+  const url = document.getElementById('qualSel').value;
+  if (!url) return alert('Select a valid stream first.');
+  const title = currentItem ? currentItem.title : 'Movie';
+  if (window.AndroidBridge && window.AndroidBridge.downloadFile) {
+    window.AndroidBridge.downloadFile(url, title);
+  } else {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = title + '.mp4';
+    a.target = '_blank';
+    a.click();
+  }
 }
 
-window.onload = runSearch;
+function openInVLC() {
+  const url = document.getElementById('qualSel').value;
+  if (!url) return;
+  const title = currentItem ? currentItem.title : 'Movie';
+  if (window.AndroidBridge && window.AndroidBridge.openExternalPlayer) {
+    window.AndroidBridge.openExternalPlayer(url, title);
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+function playCustomStream() {
+  const u = document.getElementById('customUrl').value.trim();
+  if (!u) return;
+  openMovieDetail({
+    title: 'Custom Direct Stream',
+    year: 'Live',
+    runtime: 'Direct',
+    genre: 'Custom Stream',
+    lang: 'Multi-Track',
+    director: 'User Source',
+    desc: u,
+    streams: [{ label: 'Direct Stream (' + u.split('/').pop() + ')', url: u, lang: 'Multi' }]
+  });
+}
+
+window.onload = runMultiSearch;
 </script>
 </body>
 </html>

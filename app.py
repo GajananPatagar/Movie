@@ -12,7 +12,7 @@ HTML_TEMPLATE = """
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MovieHub App</title>
+<title>MovieHub Pro</title>
 <style>
   :root { --bg: #07090e; --card: #121824; --accent: #e50914; --text: #f8fafc; --muted: #94a3b8; }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
@@ -39,7 +39,7 @@ HTML_TEMPLATE = """
 <header>
   <h1>🎬 MovieHub Pro</h1>
   <div class="search-box">
-    <input type="text" id="q" placeholder="Search any movie..." value="Night of the Living Dead">
+    <input type="text" id="q" placeholder="Search any movie (e.g. Premada Ooralli)..." value="Premada Ooralli">
     <button onclick="searchMovies()">Search</button>
   </div>
 </header>
@@ -55,7 +55,7 @@ HTML_TEMPLATE = """
   </div>
 </div>
 
-<div id="status">Type a movie name and hit Search</div>
+<div id="status">Type any movie name and hit Search</div>
 <div id="grid" class="grid"></div>
 
 <script>
@@ -64,48 +64,57 @@ let currentMovie = null;
 async function searchMovies() {
   const query = document.getElementById('q').value.trim();
   if(!query) return;
-  document.getElementById('status').textContent = "Searching online movies...";
+  document.getElementById('status').textContent = "Searching online across all sources...";
   document.getElementById('grid').innerHTML = "";
   
   const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
   const data = await res.json();
   
   if(!data.length) {
-    document.getElementById('status').textContent = "No movies found.";
+    document.getElementById('status').textContent = "No movies found for this title. Try another spelling or keyword.";
     return;
   }
-  document.getElementById('status').textContent = `Found ${data.length} movies:`;
+  document.getElementById('status').textContent = `Found ${data.length} results:`;
   const grid = document.getElementById('grid');
   
   data.forEach(m => {
     const card = document.createElement('div');
     card.className = 'card';
-    card.onclick = () => selectMovie(m.id, m.title);
+    card.onclick = () => selectMovie(m.id, m.title, m.url, m.is_stream);
     card.innerHTML = `
       <img src="${m.thumb}" loading="lazy">
       <div class="card-body">
         <div class="title">${m.title}</div>
-        <div class="meta">📅 ${m.year} | 🌐 ${m.lang}</div>
+        <div class="meta">🌐 ${m.src} | ${m.year}</div>
       </div>`;
     grid.appendChild(card);
   });
 }
 
-async function selectMovie(id, title) {
+async function selectMovie(id, title, url, isStream) {
   document.getElementById('playerCard').style.display = 'block';
   document.getElementById('playerCard').scrollIntoView({behavior: 'smooth'});
   document.getElementById('pTitle').textContent = title;
-  document.getElementById('pDetails').textContent = "Loading streams & details...";
+  document.getElementById('pDetails').textContent = "Resolving stream & details...";
+  
+  if (isStream) {
+    currentMovie = { id: 'stream', url: url };
+    document.getElementById('pDetails').textContent = "Online Stream Source";
+    const sel = document.getElementById('qualitySel');
+    sel.innerHTML = `<option value="${url}">Default Stream Quality</option>`;
+    changeQual();
+    return;
+  }
   
   const res = await fetch(`/api/details?id=${id}`);
   const data = await res.json();
   currentMovie = data;
   
-  document.getElementById('pDetails').textContent = `Downloads: ${data.downloads} | Creator/Year: ${data.year}`;
+  document.getElementById('pDetails').textContent = `Downloads: ${data.downloads} | Year: ${data.year}`;
   const sel = document.getElementById('qualitySel');
   sel.innerHTML = "";
   
-  data.files.forEach((f, idx) => {
+  data.files.forEach((f) => {
     const opt = document.createElement('option');
     opt.value = f.url;
     opt.textContent = `${f.name} (${f.size} MB - ${f.format})`;
@@ -121,14 +130,15 @@ function changeQual() {
 
 function preview30s() {
   const v = document.getElementById('vid');
-  v.currentTime = 60;
+  v.currentTime = 30;
   v.play().catch(()=>{});
 }
 
 async function downloadMovie() {
   if(!currentMovie) return;
   alert("Download started in background! File will save to /sdcard/Movies/MovieApp");
-  await fetch(`/api/download?id=${currentMovie.id}&url=${encodeURIComponent(document.getElementById('qualitySel').value)}`);
+  const targetUrl = currentMovie.url || document.getElementById('qualitySel').value;
+  await fetch(`/api/download?url=${encodeURIComponent(targetUrl)}`);
 }
 
 window.onload = searchMovies;
@@ -144,27 +154,50 @@ def index():
 @app.route("/api/search")
 def api_search():
     q = request.args.get("q", "")
-    eq = urllib.parse.quote(f"({q}) AND mediatype:(movies)")
-    url = f"https://archive.org/advancedsearch.php?q={eq}&fl[]=identifier&fl[]=title&fl[]=year&fl[]=downloads&fl[]=language&sort[]=downloads+desc&rows=20&output=json"
+    results = []
+    
+    # 1. Search Archive.org
     try:
+        eq = urllib.parse.quote(f'({q}) AND mediatype:(movies)')
+        url = f"https://archive.org/advancedsearch.php?q={eq}&fl[]=identifier&fl[]=title&fl[]=year&fl[]=downloads&fl[]=language&sort[]=downloads+desc&rows=12&output=json"
         req = urllib.request.Request(url, headers={"User-Agent": "MovieApp/1.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:
             docs = json.loads(resp.read().decode()).get("response", {}).get("docs", [])
-            out = []
             for d in docs:
                 i = d.get("identifier")
                 if i:
-                    out.append({
+                    results.append({
                         "id": i,
                         "title": d.get("title", i),
                         "year": d.get("year", "N/A"),
-                        "downloads": d.get("downloads", 0),
-                        "lang": str(d.get("language", "Multi")),
+                        "src": "Archive",
+                        "is_stream": False,
                         "thumb": f"https://archive.org/services/img/{i}"
                     })
-            return jsonify(out)
-    except Exception as e:
-        return jsonify([])
+    except Exception:
+        pass
+
+    # 2. Search Universal Online Streams via yt-dlp
+    try:
+        cmd = ["yt-dlp", "--flat-playlist", "--dump-json", "--no-warnings", f"ytsearch12:{q} full movie"]
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        for line in p.stdout.strip().splitlines():
+            if line:
+                j = json.loads(line)
+                u = j.get("url") or f"https://www.youtube.com/watch?v={j.get('id')}"
+                results.append({
+                    "id": j.get("id", "yt"),
+                    "title": j.get("title", q),
+                    "year": j.get("duration_string", "Stream"),
+                    "src": "Online Stream",
+                    "is_stream": True,
+                    "url": u,
+                    "thumb": "https://img.youtube.com/vi/" + j.get("id", "") + "/hqdefault.jpg"
+                })
+    except Exception:
+        pass
+
+    return jsonify(results)
 
 @app.route("/api/details")
 def api_details():
@@ -192,7 +225,7 @@ def api_details():
                 "downloads": meta.get("metadata", {}).get("downloads", "N/A"),
                 "files": files
             })
-    except Exception as e:
+    except Exception:
         return jsonify({"files": []})
 
 @app.route("/api/download")

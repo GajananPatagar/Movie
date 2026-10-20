@@ -1,0 +1,43 @@
+name: Build MovieHub Pro Android APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Compile Android APK via Gradle
+        working-directory: ./android
+        run: |
+          gradle assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../MovieHubPro.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MovieHubPro-APK
+          path: MovieHubPro.apk
+
+      - name: Publish APK to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete v3.0-latest -y || true
+          git tag -f v3.0-latest
+          git push origin v3.0-latest --force
+          gh release create v3.0-latest MovieHubPro.apk --title "MovieHub Pro v3.0 APK" --notes "Direct Installable Android APK with Multi-Source Search, Anti-Reaction Filter, Language Switcher, and Native Downloader."
